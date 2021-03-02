@@ -96,7 +96,7 @@ class ElectraLitModule(pl.LightningModule):
 
         return output_dict
 
-    def _commom_step(self, batch_tokens):
+    def _common_step(self, batch_tokens):
         input_text = batch_tokens['token_ids']
         attention_mask = batch_tokens['mask']
 
@@ -119,7 +119,7 @@ class ElectraLitModule(pl.LightningModule):
         return loss, gen_acc, disc_acc
 
     def training_step(self, batch, _):
-        loss, gen_acc, disc_acc = self._commom_step(batch['source']['tokens'])
+        loss, gen_acc, disc_acc = self._common_step(batch['source']['tokens'])
 
         self.log('train_loss', loss, prog_bar=True)
         self.log('train_gen_acc', gen_acc)
@@ -128,7 +128,7 @@ class ElectraLitModule(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, _):
-        loss, gen_acc, disc_acc = self._commom_step(batch['source']['tokens'])
+        loss, gen_acc, disc_acc = self._common_step(batch['source']['tokens'])
 
         self.log('val_loss', loss, prog_bar=True)
         self.log('val_gen_acc', gen_acc)
