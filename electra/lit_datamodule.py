@@ -1,3 +1,5 @@
+import os
+from typing import Optional
 from itertools import chain
 import pathlib
 
@@ -14,24 +16,16 @@ class AllennlpDataModule(pl.LightningDataModule):
             dataset_reader_cls,
             model_name,
             batch_size,
-            max_length=512,
+            vocab_dir: Optional[str] = None,
+            max_length=None,
     ):
         super().__init__()
         self._data_path = pathlib.Path(data_path)
-        self.batch_size = batch_size 
+        self.batch_size = batch_size
 
-        self.tokenizer = PretrainedTransformerTokenizer(model_name)
-        self.indexer = {
-            'tokens': PretrainedTransformerIndexer(
-                model_name, 
-                max_length=max_length)
-        }
-
-        self.reader = dataset_reader_cls(
-            self.tokenizer,
-            self.indexer,
-            max_sequence_length=512
-        )
+        self.reader = dataset_reader_cls(model_name, max_length)
+        self.tokenizer = self.reader.get_tokenizer()
+        self._vocab_dir = vocab_dir
 
     def setup(self, stage=None):
         for reader_input in self._data_path.iterdir():
@@ -64,12 +58,25 @@ class AllennlpDataModule(pl.LightningDataModule):
                         shuffle=False,
                     )
 
-        self.vocab = Vocabulary.from_instances(
-            chain(
-                self._train_dataloader.iter_instances(),
-                self._val_dataloader.iter_instances()
+        if self._vocab_dir is None or not os.path.exist(self._vocab_dir):
+            self.vocab = Vocabulary.from_instances(
+                chain(
+                    self._train_dataloader.iter_instances(),
+                    self._val_dataloader.iter_instances()
+                ),
+                max_vocab_size=self.tokenizer.vocab_size,
+                padding_token=self.reader._pad_token,
+                oov_token=self.reader._unk_token,
             )
-        )
+            if self._vocab_dir is not None:
+                self.vocab.save_to_files(self._vocab_dir)
+
+        else:
+            self.vocab = Vocabulary.from_files(
+                self._vocab_dir,
+                padding_token=self.reader._pad_token,
+                oov_token=self.reader._unk_token,
+            )
 
         if stage == 'fit' or stage is None:
             self._train_dataloader.index_with(self.vocab)
