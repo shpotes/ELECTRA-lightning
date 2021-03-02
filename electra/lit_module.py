@@ -5,8 +5,9 @@ import pytorch_lightning.metrics.functional as M
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.optim import lr_scheduler
+import torch_optimizer as optim
 from transformers import PreTrainedTokenizerBase
-from transformers import AdamW
 from electra.models import ElectraDiscriminator, ElectraGenerator
 
 class ElectraLitModule(pl.LightningModule):
@@ -138,8 +139,7 @@ class ElectraLitModule(pl.LightningModule):
         # Adam optimizer without bias correction
         # Have lower learning rates for layers closer to the input.
         # polynomial decay
-        return AdamW(
-            self.parameters(),
-            lr=self.learning_rate,
-            correct_bias=False
-        )
+        optimizer = optim.Lamb(model.parameters(), lr=self.learning_rate)
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, 100)
+
+        return [optimizer, scheduler]
