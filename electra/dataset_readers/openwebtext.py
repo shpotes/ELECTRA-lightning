@@ -12,10 +12,15 @@ class OpenWebTextDatasetReader(LMDatasetReader):
                 yield instance
 
     def _read_file(self, file_path: str):
+        dropped_instances = 0
+
         with tarfile.open(file_path, mode='r:xz') as xz_buf:
             for mem in xz_buf.getmembers():
                 content = xz_buf.extractfile(mem)
                 sentence = content.read().decode('utf-8')
+                instance = self.text_to_instance(sentence)
 
-                for instance in self.text_to_instance(sentence):
+                if instance.fields['source'].sequence_length() <= self._max_length:
                     yield instance
+                else:
+                    dropped_instances += 1

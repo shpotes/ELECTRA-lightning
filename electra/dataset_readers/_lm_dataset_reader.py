@@ -46,32 +46,12 @@ class LMDatasetReader(DatasetReader):
     @overrides
     def text_to_instance(self, sentence: str) -> Instance:
         tokenized = self._tokenizer.tokenize(sentence)
-        new_set = True
 
-        while tokenized:
-            tokenized_with_ends = []
-            _current_tokens = []
+        return_instance = Instance({
+            'source': TextField(tokenized, self._token_indexers)
+        })
 
-            start_token = self._cls_token if new_set else self._sep_token
-            tokenized_with_ends.append(start_token)
-
-            if len(tokenized) > self._max_length - 1:
-                _current_tokens = tokenized[:(self._max_length-1)]
-                tokenized = tokenized[(self._max_length-1):]
-                new_set = False
-            else:
-                _current_tokens = tokenized
-                tokenized = []
-                new_set = True
-
-            tokenized_with_ends.extend(_current_tokens)
-            tokenized_with_ends.append(self._sep_token)
-
-            yield_instance = Instance({
-                'source': TextField(tokenized_with_ends, self._token_indexers)
-            })
-
-            yield yield_instance
+        return return_instance
 
     @overrides
     def _read(self, file_path: str):
