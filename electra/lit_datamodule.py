@@ -58,12 +58,17 @@ class AllennlpDataModule(pl.LightningDataModule):
                         shuffle=False,
                     )
 
-        if self._vocab_dir is None or not os.path.exist(self._vocab_dir):
-            self.vocab = Vocabulary.from_instances(
-                chain(
+        if self._vocab_dir is None or not os.path.exists(self._vocab_dir):
+            if hasattr(self, '_val_dataloader'):
+                loaders_instances = chain(
                     self._train_dataloader.iter_instances(),
                     self._val_dataloader.iter_instances()
-                ),
+                )
+            else:
+                loaders_instances = self._train_dataloader.iter_instances()
+
+            self.vocab = Vocabulary.from_instances(
+                loaders_instances,
                 max_vocab_size=self.tokenizer.vocab_size,
                 padding_token=self.reader._pad_token,
                 oov_token=self.reader._unk_token,
@@ -78,11 +83,13 @@ class AllennlpDataModule(pl.LightningDataModule):
                 oov_token=self.reader._unk_token,
             )
 
-        if stage == 'fit' or stage is None:
+        if stage == 'fit' or stage is None:            
             self._train_dataloader.index_with(self.vocab)
-            self._val_dataloader.index_with(self.vocab)
 
-        if stage == 'test' or stage is None:
+            if hasattr(self, '_val_dataloader'):
+                self._val_dataloader.index_with(self.vocab)
+
+        if (stage == 'test' or stage is None) and hasattr(self, '_test_dataloader'):
             self._test_dataloader.index_with(self.vocab)
 
     def train_dataloader(self):
