@@ -1,1 +1,1 @@
-from .wikitext import WikiTextDatasetReader
+from .openwebtext import OpenWebTextDatasetReader
