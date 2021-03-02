@@ -39,7 +39,10 @@ if __name__ == '__main__':
     trainer = pl.Trainer(
         gpus=1,
         fast_dev_run=True,
-        accumulate_grad_batches=8
+        # overfit_batches=8,
+        accumulate_grad_batches=8,
+        max_epochs=1000,
+        gradient_clip_val=0.1,
     )
 
     trainer.fit(model, dm)
