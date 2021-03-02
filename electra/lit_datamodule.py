@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 
 class AllennlpDataModule(pl.LightningDataModule):
     def __init__(
-            self, 
+            self,
             data_path,
             dataset_reader_cls,
             model_name,
@@ -33,29 +33,30 @@ class AllennlpDataModule(pl.LightningDataModule):
 
     def _setup_raw_files(self):
         data_dir = self._data_path
-        target_files = set(data_dir.iterdir()) - {'train', 'valid', 'test'}
+        split_dir = {data_dir / 'train', data_dir / 'valid', data_dir / 'test'}
+        target_files = set(data_dir.iterdir()) - split_dir
 
         if target_files:
-            data_dir.mkdir('train', exist_ok=True)
-            data_dir.mkdir('valid', exist_ok=True)
-            data_dir.mkdir('test', exist_ok=True)
+            (data_dir / 'train').mkdir(exist_ok=True)
+            (data_dir / 'valid').mkdir(exist_ok=True)
+            (data_dir / 'test').mkdir(exist_ok=True)
 
             total_size = len(target_files)
-            train_size = self._split_size[0]
-            valid_size = self._split_size[1]
+            train_size = int(total_size * self._split_size[0])
+            valid_size = int(total_size * self._split_size[1])
 
             for train_file in random.sample(target_files, train_size):
                 train_file.rename(data_dir / 'train' / train_file.name)
 
-            target_files = set(data_dir.iterdir()) - {'train', 'valid', 'test'}
+            target_files = set(data_dir.iterdir()) - split_dir
 
             for valid_file in random.sample(target_files, valid_size):
-                valid_file.rename(data_dir / 'train' / valid_file.name)
+                valid_file.rename(data_dir / 'valid' / valid_file.name)
 
-            target_files = set(data_dir.iterdir()) - {'train', 'valid', 'test'}
+            target_files = set(data_dir.iterdir()) - split_dir
 
             for test_file in target_files:
-                test_file.rename(data_dir / 'train' / valid_file.name)
+                test_file.rename(data_dir / 'test' / test_file.name)
 
 
     def setup(self, stage=None):
