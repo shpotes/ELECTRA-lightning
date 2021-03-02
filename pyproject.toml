@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "electra"
+version = "0.1.0"
+description = "Just another unofficial reimplementation of ELECTRA"
+authors = ["Santiago <shpotes3@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+allennlp = "^2.0.1"
+allennlp-models = "^2.0.1"
+ipywidgets = "^7.6.3"
+pytorch-lightning = "^1.1.8"
+wandb = "^0.10.19"
+hydra-core = "^1.0.6"
+torch_optimizer = "^0.1.0"
+
+[tool.poetry.dev-dependencies]
+jupyterlab = "^3.0.6"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
