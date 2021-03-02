@@ -8,7 +8,7 @@ from electra.dataset_readers import OpenWebTextDatasetReader
 
 def get_datamodule(batch_size):
     dm = AllennlpDataModule(
-        data_path='data/openwebtext',
+        data_path='data/sample_set',
         dataset_reader_cls=OpenWebTextDatasetReader,
         model_name='bert-base-uncased',
         batch_size=batch_size,
@@ -17,7 +17,7 @@ def get_datamodule(batch_size):
 
     return dm
 
-def get_model(L, H):
+def get_model(datamodule, L, H):
     model = ElectraLitModule(
         dm.tokenizer,
         hidden_size=128,
@@ -33,8 +33,13 @@ def get_model(L, H):
 
 
 if __name__ == '__main__':
-    dm = get_datamodule(batch_size=8)
-    model = get_model(L=4, H=512)
+    dm = get_datamodule(batch_size=16)
+    model = get_model(dm, L=2, H=128)
 
-    trainer = pl.Trainer(gpus=1, fast_dev_run=True)
+    trainer = pl.Trainer(
+        gpus=1,
+        fast_dev_run=True,
+        accumulate_grad_batches=8
+    )
+
     trainer.fit(model, dm)
