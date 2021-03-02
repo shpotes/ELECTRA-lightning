@@ -97,6 +97,7 @@ class ElectraLitModule(pl.LightningModule):
         return output_dict
 
     def _common_step(self, batch_tokens):
+        # (batch_size, seq_lenght)
         input_text = batch_tokens['token_ids']
         attention_mask = batch_tokens['mask']
 
@@ -107,11 +108,11 @@ class ElectraLitModule(pl.LightningModule):
 
         mask = output_dict['mask']
 
-        disc_label = (output_dict['fake_text'] != input_text).float().detach()
+        disc_label = (output_dict['fake_text'] != input_text).int().detach()
 
         gen_pred = torch.argmax(output_dict['gen_logits'], dim=-1)
         disc_pred = torch.sign(output_dict['disc_logits']) + 1
-        disc_pred = torch.round(disc_pred * 0.5)
+        disc_pred = torch.round(disc_pred * 0.5).int()
 
         gen_acc = M.accuracy(input_text[mask], gen_pred[mask])
         disc_acc = M.accuracy(disc_label[mask], disc_pred[mask])
