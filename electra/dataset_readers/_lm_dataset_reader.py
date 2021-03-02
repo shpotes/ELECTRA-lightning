@@ -44,7 +44,7 @@ class LMDatasetReader(DatasetReader):
         return self._tokenizer.tokenizer
 
     @overrides
-    def text_to_instance(self, sentence: str) -> Generator[Instance]:
+    def text_to_instance(self, sentence: str) -> Instance:
         tokenized = self._tokenizer.tokenize(sentence)
         new_set = True
 
