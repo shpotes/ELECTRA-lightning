@@ -139,7 +139,7 @@ class ElectraLitModule(pl.LightningModule):
         # Adam optimizer without bias correction
         # Have lower learning rates for layers closer to the input.
         # polynomial decay
-        optimizer = optim.Lamb(model.parameters(), lr=self.learning_rate)
+        optimizer = optim.Lamb(self.parameters(), lr=self.learning_rate)
         scheduler = lr_scheduler.CosineAnnealingLR(optimizer, 100)
 
-        return [optimizer, scheduler]
+        return [optimizer], [scheduler]
