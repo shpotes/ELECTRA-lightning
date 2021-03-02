@@ -1,7 +1,9 @@
-import os
+
 from typing import Optional
 from itertools import chain
+import os
 import pathlib
+import random
 
 from allennlp.data.tokenizers import PretrainedTransformerTokenizer
 from allennlp.data.token_indexers import PretrainedTransformerIndexer
@@ -18,6 +20,7 @@ class AllennlpDataModule(pl.LightningDataModule):
             batch_size,
             vocab_dir: Optional[str] = None,
             max_length=None,
+            train_val_test_split=[0.7, 0.15, 0.15]
     ):
         super().__init__()
         self._data_path = pathlib.Path(data_path)
@@ -26,8 +29,37 @@ class AllennlpDataModule(pl.LightningDataModule):
         self.reader = dataset_reader_cls(model_name, max_length)
         self.tokenizer = self.reader.get_tokenizer()
         self._vocab_dir = vocab_dir
+        self._split_size = train_val_test_split
+
+    def _setup_raw_files(self):
+        data_dir = self._data_path
+        target_files = set(data_dir.iterdir()) - {'train', 'valid', 'test'}
+
+        if target_files:
+            data_dir.mkdir('train', exist_ok=True)
+            data_dir.mkdir('valid', exist_ok=True)
+            data_dir.mkdir('test', exist_ok=True)
+
+            total_size = len(target_files)
+            train_size = self._split_size[0]
+            valid_size = self._split_size[1]
+
+            for train_file in random.sample(target_files, train_size):
+                train_file.rename(data_dir / 'train' / train_file.name)
+
+            target_files = set(data_dir.iterdir()) - {'train', 'valid', 'test'}
+
+            for valid_file in random.sample(target_files, valid_size):
+                valid_file.rename(data_dir / 'train' / valid_file.name)
+
+            target_files = set(data_dir.iterdir()) - {'train', 'valid', 'test'}
+
+            for test_file in target_files:
+                test_file.rename(data_dir / 'train' / valid_file.name)
+
 
     def setup(self, stage=None):
+        self._setup_raw_files()
         for reader_input in self._data_path.iterdir():
             if stage == 'fit' or stage is None:
                 if 'train' in str(reader_input):
@@ -59,13 +91,10 @@ class AllennlpDataModule(pl.LightningDataModule):
                     )
 
         if self._vocab_dir is None or not os.path.exists(self._vocab_dir):
-            if hasattr(self, '_val_dataloader'):
-                loaders_instances = chain(
-                    self._train_dataloader.iter_instances(),
-                    self._val_dataloader.iter_instances()
-                )
-            else:
-                loaders_instances = self._train_dataloader.iter_instances()
+            loaders_instances = chain(
+                self._train_dataloader.iter_instances(),
+                self._val_dataloader.iter_instances()
+            )
 
             self.vocab = Vocabulary.from_instances(
                 loaders_instances,
@@ -85,11 +114,9 @@ class AllennlpDataModule(pl.LightningDataModule):
 
         if stage == 'fit' or stage is None:            
             self._train_dataloader.index_with(self.vocab)
+            self._val_dataloader.index_with(self.vocab)
 
-            if hasattr(self, '_val_dataloader'):
-                self._val_dataloader.index_with(self.vocab)
-
-        if (stage == 'test' or stage is None) and hasattr(self, '_test_dataloader'):
+        if stage == 'test' or stage is None:
             self._test_dataloader.index_with(self.vocab)
 
     def train_dataloader(self):
