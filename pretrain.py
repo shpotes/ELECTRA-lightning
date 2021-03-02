@@ -33,6 +33,7 @@ def get_model(datamodule, L, H):
 
 
 if __name__ == '__main__':
+<<<<<<< Updated upstream
     dm = get_datamodule(batch_size=16)
     model = get_model(dm, L=2, H=128)
 
@@ -44,5 +45,9 @@ if __name__ == '__main__':
         max_epochs=1000,
         gradient_clip_val=0.1,
     )
+=======
+    dm = get_datamodule(batch_size=2)
+    model = get_model(L=4, H=512)
+>>>>>>> Stashed changes
 
     trainer.fit(model, dm)
