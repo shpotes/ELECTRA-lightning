@@ -1,5 +1,4 @@
-
-from typing import Optional
+from typing import Callable, Union, Optional, List
 from itertools import chain
 import os
 import pathlib
@@ -11,24 +10,32 @@ from allennlp.data.data_loaders import MultiProcessDataLoader
 from allennlp.data.vocabulary import Vocabulary
 import pytorch_lightning as pl
 
+from electra import dataset_readers
+
 class AllennlpDataModule(pl.LightningDataModule):
     def __init__(
             self,
-            data_path,
-            dataset_reader_cls,
-            model_name,
-            batch_size,
+            data_path: str,
+            dataset_reader_cls: Union[str, Callable],
+            model_name: str,
+            batch_size: int,
             vocab_dir: Optional[str] = None,
-            max_length=None,
-            train_val_test_split=[0.7, 0.15, 0.15]
+            max_length: Optional[int] = None,
+            train_val_test_split: List[int] = [0.7, 0.15, 0.15]
     ):
         super().__init__()
-        self._data_path = pathlib.Path(data_path)
+
+        root_path = pathlib.Path(__file__).parents[1]
+        
+        self._data_path = root_path / (data_path)
         self.batch_size = batch_size
+
+        if isinstance(dataset_reader_cls, str):
+            dataset_reader_cls = getattr(dataset_readers, dataset_reader_cls)
 
         self.reader = dataset_reader_cls(model_name, max_length)
         self.tokenizer = self.reader.get_tokenizer()
-        self._vocab_dir = vocab_dir
+        self._vocab_dir = root_path / vocab_dir
         self._split_size = train_val_test_split
 
     def _setup_raw_files(self):
