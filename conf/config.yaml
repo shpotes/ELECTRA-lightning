@@ -1,0 +1,7 @@
+defaults:
+  - datamodule: openwebtext
+  - architecture: tiny
+  - trainer: test
+  - training: default
+
+name: test

@@ -31,6 +31,7 @@ class ElectraLitModule(pl.LightningModule):
             disc_weight: float = 50.,
     ):
         super().__init__()
+        self.save_hyperparameters()
 
         self.embeddings = TransformerEmbeddings(
             vocab_size=tokenizer.vocab_size,
