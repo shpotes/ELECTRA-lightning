@@ -18,8 +18,10 @@ def create_model(datamodule, conf) -> pl.LightningModule:
         **conf.training
     )
 
-def create_trainer(conf, logger) -> pl.Trainer:
+def create_trainer(conf) -> pl.Trainer:
+    logger = pl.logging.WandbLogger(conf.name)
+
     return pl.Trainer(
-        logger=logger,
+        logger=logger
         **conf.trainer
     )

@@ -3,3 +3,5 @@ defaults:
   - architecture: tiny
   - trainer: test
   - training: default
+
+name: test
