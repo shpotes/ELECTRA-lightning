@@ -11,17 +11,17 @@ from torch.utils.data import Dataset as TorchDataset
 class MLMDataset(TorchDataset):
     def __init__(
         self, 
-        dataset: datasets.Dataset, 
-        tokenizer: PreTrainedTokenizerBase, 
+        dataset: datasets.Dataset,
+        tokenizer: PreTrainedTokenizerBase,
         num_proc: int = 1,
-        batch_size: int = 1000,
+        data_batch_size: int = 1000,
         text_column_name: str = 'text',
         prepare_data: bool = True
     ):
         self.tokenizer = tokenizer
         self.max_len = self.tokenizer.model_max_length
         
-        self._batch_size = batch_size
+        self._batch_size = data_batch_size
         self._num_proc = num_proc
 
         self._text_column = text_column_name
@@ -30,7 +30,9 @@ class MLMDataset(TorchDataset):
             self._dataset = self.prepare_dataset(dataset)
         else:
             self._dataset = dataset
-        
+
+        self._dataset.set_format('torch')
+
     def __getitem__(self, idx):
         return self._dataset[idx]
     
@@ -61,17 +63,17 @@ class MLMDataset(TorchDataset):
         
         return processed_dataset
 
-    def _filtering_func(self, examples: Dict[str, List[Any]):
-        return [line for line in examples[self._text_column] if len(line) > 0 and not line.isspace()]
+    def _filtering_func(self, examples: Dict[str, List[str]]) -> Dict[str, List[str]]:
+        return [line.lower() for line in examples[self._text_column] if len(line) > 0 and not line.isspace()]
         
-    def _tokenize_func(self, examples: Dict[str, List[Any]):
+    def _tokenize_func(self, examples: Dict[str, List[str]]) -> Dict[str, List[int]]:
         examples[self._text_column] = self._filtering_func(examples)
         return self.tokenizer(
-            examples[self._text_column], 
+            examples[self._text_column],
             return_special_tokens_mask=True
         )
     
-    def _group_text(self, examples: Dict[str, List[Any]):
+    def _group_text(self, examples: Dict[str, List[int]]) -> Dict[str, List[int]]:
         concatenated_examples = {k: itertools.chain(*examples[k]) for k in examples.keys()}
 
         result = {
