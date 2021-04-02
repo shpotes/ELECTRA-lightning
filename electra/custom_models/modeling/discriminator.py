@@ -8,7 +8,7 @@ from transformers.activations import get_activation
 from transformers.file_utils import ModelOutput
 from transformers.models.electra import ElectraModel
 
-class DiscriminatorOutput(ModelOuput):
+class DiscriminatorOutput(ModelOutput):
     logits: torch.Tensor = None
     hidden_states: Optional[torch.Tensor] = None
     loss: Optional[torch.Tensor] = None
@@ -16,8 +16,6 @@ class DiscriminatorOutput(ModelOuput):
 class DiscriminatorHead(nn.Module):
     def __init__(self, config):
         super().__init__()
-
-        self._pad_token_id = config.pad_token_id
 
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = get_activation(config.hidden_act)
@@ -28,6 +26,7 @@ class DiscriminatorHead(nn.Module):
             discriminator_hidden_states: torch.Tensor,
             input_ids: torch.Tensor,
             fake_input_ids: torch.Tensor,
+            attention_mask: torch.Tensor,
             output_loss=True,
             output_hidden_states=False,
             output_logits=True,
@@ -40,14 +39,14 @@ class DiscriminatorHead(nn.Module):
 
         disc_loss = None
         if output_loss:
-            non_padded_indices = torch.nonzeros(
-                input_ids != self._path_token_id,
+            attended_indices = torch.nonzero(
+                attention_mask,
                 as_tuple=True
             )
 
             disc_loss = F.binary_cross_entropy_with_logits(
-                logits[non_padded_indices],
-                labels[non_padded_indices]
+                logits[attended_indices],
+                labels[attended_indices]
             )
 
         return DiscriminatorOutput(
@@ -63,7 +62,7 @@ class ElectraDiscriminator(nn.Module):
         self.backbone = ElectraModel(config)
         self.discriminator_head = DiscriminatorHead(config)
 
-    def forward(self, input_text, fake_input_text, attention_mask):
+    def forward(self, input_text, fake_input_text, attention_mask, **kwargs):
         discriminator_hidden_state = self.backbone(
             fake_input_text,
             attention_mask
@@ -73,4 +72,6 @@ class ElectraDiscriminator(nn.Module):
             discriminator_hidden_state,
             input_text,
             fake_input_text,
+            attention_mask,
+            **kwargs
         )
