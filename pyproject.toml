@@ -14,6 +14,7 @@ pytorch-lightning = "^1.1.8"
 wandb = "^0.10.19"
 hydra-core = "^1.0.6"
 torch_optimizer = "^0.1.0"
+datasets = "^1.4.1"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^3.0.6"
