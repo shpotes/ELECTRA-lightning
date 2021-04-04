@@ -40,7 +40,7 @@ class HuggingDataModule(pl.LightningDataModule):
         if not self._from_disk:
             datasets.load_dataset(**self._data_args)
 
-    def setup(self):
+    def setup(self, _):
         if self._from_disk:
             data = datasets.load_from_disk(self._data_args['path'])
         else:
