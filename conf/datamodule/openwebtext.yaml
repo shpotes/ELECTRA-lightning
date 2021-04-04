@@ -1,7 +1,0 @@
-# @package _global_
-datamodule:
-  data_path: 'data/openwebtext/'
-  dataset_reader_cls: OpenWebTextDatasetReader
-  model_name: 'bert-base-uncased'
-  batch_size: 16
-  vocab_dir: 'vocab'

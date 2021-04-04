@@ -1,8 +1,0 @@
-# @package _global_
-training:
-  embeddings_dropout: 0.1
-  mask_prob: 0.25
-  temperature: 1
-  learning_rate: 3e-4
-  gen_weight: 1
-  disc_weight: 50

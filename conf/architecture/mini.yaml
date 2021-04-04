@@ -1,9 +1,0 @@
-# @package _global_
-architecture:
-  hidden_size: 128
-  num_gen_hidden_layers: 4
-  gen_intermediate_size: 256
-  num_disc_hidden_layers: 4
-  disc_intermediate_size: 256
-  num_attention_heads: 4
-  activation: 'gelu'

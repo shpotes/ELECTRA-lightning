@@ -1,7 +1,0 @@
-# @package _global_
-trainer:
-  gpus: 1
-  accumulate_grad_batches: 8
-  max_eprochs: 1000
-  gradient_clip_val: 0.1
-  overfit_batches: 8
