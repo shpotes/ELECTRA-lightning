@@ -9,7 +9,7 @@ def dynamic_masking(
         mask_prob,
         device=special_tokens_mask.device
     )
-    prob_matrix.masked_fill_(special_tokens_mask, value=0)
+    prob_matrix.masked_fill_(special_tokens_mask.bool(), value=0)
 
     mask = torch.bernoulli(prob_matrix).bool()
 
