@@ -5,8 +5,9 @@ import pytorch_lightning.metrics.functional as M
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim import lr_scheduler
-import torch_optimizer as optim
+# from torch.optim import lr_scheduler
+from torch import optim
+# import torch_optimizer as optim
 from transformers import PreTrainedTokenizerBase
 from transformers.models.electra import ElectraConfig
 from electra.models import (
@@ -20,7 +21,9 @@ class ElectraLitModule(pl.LightningModule):
             config: ElectraConfig,
             hparams: Union[Dict, OmegaConf]
     ):
-        self.save_hyperparameters(config.to_dict(), hparams)
+        super().__init__()
+
+        # self.save_hyperparameters(config.to_dict(), hparams)
 
         self.generator = ElectraGenerator(config)
         self.discriminator = ElectraDiscriminator(config)
@@ -37,15 +40,15 @@ class ElectraLitModule(pl.LightningModule):
         mask_idx = torch.nonzero(gen_output['mask'], as_tuple=True)
 
         fake_input_ids = input_ids.clone().detach()
-        fake_input_ids[mask_idx] = gen_output['sampled_tokens_ids'].detach()
+        fake_input_ids[mask_idx] = gen_output['sampled_tokens_ids'].clone().detach()
 
         disc_output = self.discriminator(input_ids, fake_input_ids, attention_mask)
 
         output_dict = {
             'mlm_loss': gen_output['loss'],
             'disc_loss': disc_output['loss'],
-            'gen_logits': gen_output['logits'],
-            'disc_logits': disc_output['logits'],
+            # 'gen_logits': gen_output['last_hidden_state'],
+            'disc_logits': disc_output['last_hidden_state'],
             'mask': gen_output['mask'],
             'fake_input_ids': fake_input_ids,
         }
@@ -53,7 +56,7 @@ class ElectraLitModule(pl.LightningModule):
         return output_dict
 
     def _common_step(self, batch):
-        attention_mask, input_ids, special_tokens_mask = batch.values()
+        input_ids, attention_mask , special_tokens_mask = batch.values()
         output_dict = self(input_ids, attention_mask, special_tokens_mask)
 
         loss = self.gen_weight * output_dict['mlm_loss'] + \
@@ -63,7 +66,7 @@ class ElectraLitModule(pl.LightningModule):
 
         disc_label = (output_dict['fake_input_ids'] != input_ids).int().detach()
 
-        gen_pred = torch.argmax(output_dict['gen_logits'], dim=-1)
+        gen_pred = output_dict['fake_input_ids']
         disc_pred = torch.sign(output_dict['disc_logits']) + 1
         disc_pred = torch.round(disc_pred * 0.5).int()
 
@@ -93,7 +96,8 @@ class ElectraLitModule(pl.LightningModule):
         # Adam optimizer without bias correction
         # Have lower learning rates for layers closer to the input.
         # polynomial decay
-        optimizer = optim.Lamb(self.parameters(), lr=self.learning_rate)
-        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, 100)
+        # optimizer = optim.Lamb(self.parameters(), lr=self.learning_rate)
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, 100)
 
         return [optimizer], [scheduler]
