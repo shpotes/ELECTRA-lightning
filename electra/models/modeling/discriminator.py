@@ -10,7 +10,7 @@ from transformers.models.electra import ElectraModel
 
 class DiscriminatorOutput(ModelOutput):
     logits: torch.Tensor = None
-    hidden_states: Optional[torch.Tensor] = None
+    hidden_state: Optional[torch.Tensor] = None
     loss: Optional[torch.Tensor] = None
 
 class DiscriminatorHead(nn.Module):
@@ -28,14 +28,14 @@ class DiscriminatorHead(nn.Module):
             fake_input_ids: torch.Tensor,
             attention_mask: torch.Tensor,
             output_loss=True,
-            output_hidden_states=False,
+            output_hidden_state=True,
             output_logits=True,
     ):
         labels = (input_ids != fake_input_ids).float().detach()
 
-        hidden_states = self.dense(discriminator_hidden_states)
-        hidden_states = self.activation(hidden_states)
-        logits = self.dense_prediction(hidden_states).squeeze(-1)
+        hidden_state = self.dense(discriminator_hidden_states)
+        hidden_state = self.activation(hidden_state)
+        logits = self.dense_prediction(hidden_state).squeeze(-1)
 
         disc_loss = None
         if output_loss:
@@ -50,8 +50,8 @@ class DiscriminatorHead(nn.Module):
             )
 
         return DiscriminatorOutput(
-            logits=logits if output_logits else None,
-            hidden_states=hidden_states if output_hidden_states else None,
+            last_hidden_state=logits if output_logits else None,
+            hidden_state=hidden_state if output_hidden_state else None,
             loss=disc_loss,
         )
 

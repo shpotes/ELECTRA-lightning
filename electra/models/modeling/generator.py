@@ -50,7 +50,7 @@ def _get_masked_text(
     return mask, masked_ids
 
 class GeneratorOutput(ModelOutput):
-    hidden_state: Optional[torch.Tensor] = None
+    last_hidden_state: Optional[torch.Tensor] = None
     loss: Optional[torch.Tensor] = None
     sampled_tokens_ids: Optional[torch.Tensor] = None
     mask: Optional[torch.Tensor] = None
@@ -71,7 +71,7 @@ class GeneratorHead(nn.Module):
             generator_hidden_state: torch.Tensor,
             input_ids: Optional[torch.Tensor] = None,
             mask: Optional[torch.Tensor] = None,
-            output_hidden_state=False,
+            output_last_hidden_state=True,
             output_loss=True,
             output_mask=True,
             output_sampled_tokens_ids=True,
@@ -98,7 +98,7 @@ class GeneratorHead(nn.Module):
             sampled_tokens_ids = _gumble_sample(sample_logits, self._temperature)
 
         return GeneratorOutput(
-            hidden_state=hidden_state if output_hidden_state else None,
+            last_hidden_state=hidden_state if output_last_hidden_state else None,
             loss=mlm_loss,
             sampled_tokens_ids=sampled_tokens_ids,
             mask=mask if output_mask else None,
