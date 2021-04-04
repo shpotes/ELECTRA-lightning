@@ -1,2 +1,3 @@
-from .transformers_module import TransformerEncoder
-from .electra_module import ElectraDiscriminator, ElectraGenerator
+from .configuration_custom_electra import Config
+from .modeling.discriminator import ElectraDiscriminator
+from .modeling.generator import ElectraGenerator

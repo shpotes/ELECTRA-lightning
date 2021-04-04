@@ -1,2 +1,2 @@
-from electra.lit_datamodule import AllennlpDataModule
 from electra.lit_module import ElectraLitModule
+from electra.lit_datamodule import HuggingDataModule

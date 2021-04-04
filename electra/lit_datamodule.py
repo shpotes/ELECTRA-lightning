@@ -1,137 +1,122 @@
-from typing import Callable, Union, Optional, List
-from itertools import chain
-import os
-import pathlib
-import random
+from typing import List, Optional
 
-from allennlp.data.tokenizers import PretrainedTransformerTokenizer
-from allennlp.data.token_indexers import PretrainedTransformerIndexer
-from allennlp.data.data_loaders import MultiProcessDataLoader
-from allennlp.data.vocabulary import Vocabulary
+import datasets
 import pytorch_lightning as pl
+import transformers
+from torch.utils.data import DataLoader
 
-from electra import dataset_readers
+from electra import dataset as electra_dataset
 
-class AllennlpDataModule(pl.LightningDataModule):
+class HuggingDataModule(pl.LightningDataModule):
     def __init__(
             self,
             data_path: str,
-            dataset_reader_cls: Union[str, Callable],
             model_name: str,
             batch_size: int,
-            vocab_dir: Optional[str] = None,
+            data_name: Optional[str] = None,
             max_length: Optional[int] = None,
-            train_val_test_split: List[int] = [0.7, 0.15, 0.15]
+            train_val_test_split: List[int] = [0.7, 0.15, 0.15],
+            from_disk: bool = False,
+            **data_kwargs
     ):
         super().__init__()
 
-        root_path = pathlib.Path(__file__).parents[1]
-        
-        self._data_path = root_path / (data_path)
+        self._from_disk = from_disk
+        self._data_args = {
+            'path': data_path,
+            'name': data_name,
+        }
+
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+        self.max_len = max_length if max_length else self.tokenizer.model_max_length
+
         self.batch_size = batch_size
+        self._data_kwargs = data_kwargs
 
-        if isinstance(dataset_reader_cls, str):
-            dataset_reader_cls = getattr(dataset_readers, dataset_reader_cls)
-
-        self.reader = dataset_reader_cls(model_name, max_length)
-        self.tokenizer = self.reader.get_tokenizer()
-        self._vocab_dir = root_path / vocab_dir
         self._split_size = train_val_test_split
 
-    def _setup_raw_files(self):
-        data_dir = self._data_path
-        split_dir = {data_dir / 'train', data_dir / 'valid', data_dir / 'test'}
-        target_files = set(data_dir.iterdir()) - split_dir
 
-        if target_files:
-            (data_dir / 'train').mkdir(exist_ok=True)
-            (data_dir / 'valid').mkdir(exist_ok=True)
-            (data_dir / 'test').mkdir(exist_ok=True)
+    def prepare_data(self):
+        if not self._from_disk:
+            datasets.load_dataset(**self._data_args)
 
-            total_size = len(target_files)
-            train_size = int(total_size * self._split_size[0])
-            valid_size = int(total_size * self._split_size[1])
-
-            for train_file in random.sample(target_files, train_size):
-                train_file.rename(data_dir / 'train' / train_file.name)
-
-            target_files = set(data_dir.iterdir()) - split_dir
-
-            for valid_file in random.sample(target_files, valid_size):
-                valid_file.rename(data_dir / 'valid' / valid_file.name)
-
-            target_files = set(data_dir.iterdir()) - split_dir
-
-            for test_file in target_files:
-                test_file.rename(data_dir / 'test' / test_file.name)
-
-
-    def setup(self, stage=None):
-        self._setup_raw_files()
-        for reader_input in self._data_path.iterdir():
-            if stage == 'fit' or stage is None:
-                if 'train' in str(reader_input):
-                    _train_reader_input = reader_input
-                    self._train_dataloader = MultiProcessDataLoader(
-                        self.reader,
-                        _train_reader_input,
-                        batch_size = self.batch_size,
-                        max_instances_in_memory=10 * self.batch_size,
-                        shuffle=True,
-                    )
-                if 'valid' in str(reader_input):
-                    _val_reader_input = reader_input
-                    self._val_dataloader = MultiProcessDataLoader(
-                        self.reader,
-                        _val_reader_input,
-                        batch_size = self.batch_size,
-                        shuffle=False,
-                    )
-
-            if stage == 'test' or stage is None:
-                if 'test' in str(reader_input):
-                    _test_reader_input = reader_input
-                    self._test_dataloader = MultiProcessDataLoader(
-                        self.reader,
-                        _test_reader_input,
-                        batch_size=self.batch_size,
-                        shuffle=False,
-                    )
-
-        if self._vocab_dir is None or not os.path.exists(self._vocab_dir):
-            loaders_instances = chain(
-                self._train_dataloader.iter_instances(),
-                self._val_dataloader.iter_instances()
-            )
-
-            self.vocab = Vocabulary.from_instances(
-                loaders_instances,
-                max_vocab_size=self.tokenizer.vocab_size,
-                padding_token=self.reader._pad_token,
-                oov_token=self.reader._unk_token,
-            )
-            if self._vocab_dir is not None:
-                self.vocab.save_to_files(self._vocab_dir)
-
+    def setup(self, _):
+        if self._from_disk:
+            data = datasets.load_from_disk(self._data_args['path'])
         else:
-            self.vocab = Vocabulary.from_files(
-                self._vocab_dir,
-                padding_token=self.reader._pad_token,
-                oov_token=self.reader._unk_token,
-            )
+            data = datasets.load_dataset(**self._data_args)
 
-        if stage == 'fit' or stage is None:            
-            self._train_dataloader.index_with(self.vocab)
-            self._val_dataloader.index_with(self.vocab)
+        train_data = data['train']
 
-        if stage == 'test' or stage is None:
-            self._test_dataloader.index_with(self.vocab)
+        if all(split in data for split in ['test', 'validation']):
+            test_data = data['test']
+            val_data = data['validation']
+        else:
+            _, val_size, test_size = self._split_size
+            test_size = int(len(train_data) * test_size)
+            val_size = int(len(train_data) * val_size)
+
+            train_data = train_data.shuffle()
+
+            test_data = train_data[:test_size]
+            val_data = train_data[test_size:val_size+test_size]
+            train_data = train_data[val_size+test_size:]
+
+        self.train_dataset = electra_dataset.MLMDataset(
+            train_data, self.tokenizer, **self._data_kwargs
+        )
+
+        self.val_dataset = electra_dataset.MLMDataset(
+            val_data, self.tokenizer, **self._data_kwargs
+        )
+        self.test_dataset = electra_dataset.MLMDataset(
+            test_data, self.tokenizer, **self._data_kwargs
+        )
 
     def train_dataloader(self):
-        return self._train_dataloader
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            pin_memory=True,
+            num_workers=8
+        )
 
     def val_dataloader(self):
-        return self._val_dataloader
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            pin_memory=True,
+            num_workers=8
+        )
 
     def test_dataloader(self):
-        return self._test_dataloader
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            pin_memory=True,
+            num_workers=8
+        )
+
+
+    def save_to_disk(self, path: str):
+        template = datasets.DatasetDict()
+        template['train'] = self.train_dataset._dataset
+        template['validation'] = self.val_dataset._dataset
+        template['test'] = self.test_dataset._dataset
+
+        template.save_to_disk(path)
+
+    @staticmethod
+    def load_from_disk(
+            path: str,
+            model_name: str,
+            batch_size: int,
+    ):
+        return HuggingDataModule(
+            path,
+            model_name,
+            batch_size,
+            from_disk=True,
+            prepare_data=False,
+        )
