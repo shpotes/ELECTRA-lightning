@@ -46,6 +46,7 @@ class MLMDataset(TorchDataset):
         return self._dataset.__str__()
 
     def prepare_dataset(self, raw_dataset: datasets.Dataset):
+        print('tokenizing....')
         tokenized_dataset = raw_dataset.map(
             self._tokenize_func,
             batched=True,
@@ -53,9 +54,8 @@ class MLMDataset(TorchDataset):
             batch_size=self._batch_size,
             writer_batch_size=self._batch_size,
             remove_columns=[self._text_column],
-            keep_in_memory=True,
         )
-
+        print('grouping...')
         processed_dataset = tokenized_dataset.map(
             self._group_text,
             batched=True,

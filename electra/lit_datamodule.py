@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import datasets
 import pytorch_lightning as pl
@@ -17,7 +17,8 @@ class HuggingDataModule(pl.LightningDataModule):
             max_length: Optional[int] = None,
             train_val_test_split: List[int] = [0.7, 0.15, 0.15],
             from_disk: bool = False,
-            **data_kwargs
+            data_kwargs: Dict[str, Any] = {},
+            **data_loader_kwargs
     ):
         super().__init__()
 
@@ -25,13 +26,14 @@ class HuggingDataModule(pl.LightningDataModule):
         self._data_args = {
             'path': data_path,
             'name': data_name,
+            **data_kwargs
         }
 
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
         self.max_len = max_length if max_length else self.tokenizer.model_max_length
 
         self.batch_size = batch_size
-        self._data_kwargs = data_kwargs
+        self._data_kwargs = data_loader_kwargs
 
         self._split_size = train_val_test_split
 
@@ -47,6 +49,7 @@ class HuggingDataModule(pl.LightningDataModule):
             data = datasets.load_dataset(**self._data_args)
 
         train_data = data['train']
+        print(train_data)
 
         if all(split in data for split in ['test', 'validation']):
             test_data = data['test']
@@ -61,6 +64,8 @@ class HuggingDataModule(pl.LightningDataModule):
             test_data = train_data[:test_size]
             val_data = train_data[test_size:val_size+test_size]
             train_data = train_data[val_size+test_size:]
+
+        print('create dataset')
 
         self.train_dataset = electra_dataset.MLMDataset(
             train_data, self.tokenizer, **self._data_kwargs
